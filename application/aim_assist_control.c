@@ -184,7 +184,7 @@ void Usart1Receive_IDLE(void)
 //        {
 //            get_data.pitch_data.f = -atof(tempdatary);
 //        }
-//		UART_SendString(&huart1, usart1_dma_rx_buffer);  // ·¢ËÍ×Ö·û´®
+//		UART_SendString(&huart1, usart1_dma_rx_buffer);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
 
 
 		if(this_time_data_rx_len == RX_DATA_LEN)
@@ -194,10 +194,10 @@ void Usart1Receive_IDLE(void)
 			HP = get_robot_remain_HP();
 			send_uint16_t(HP);				
 //          sbus_to_usart1(sbus_rx_buf[0]);
-//			UART_SendString(&huart1, usart1_dma_rx_buffer);  // ·¢ËÍ×Ö·û´®
+//			UART_SendString(&huart1, usart1_dma_rx_buffer);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
             }
 //		HAL_UART_Transmit_DMA(&huart1, usart1_dma_tx_buffer, USART1_DMA_BUF_NUM);
-//		UART_SendString(&huart1, usart1_dma_rx_buffer);  // ·¢ËÍ×Ö·û´®
+//		UART_SendString(&huart1, usart1_dma_rx_buffer);  // ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
         memset(usart1_dma_rx_buffer, 0, USART1_DMA_BUF_NUM);
 		
         HAL_UART_Receive_DMA(&huart1, usart1_dma_rx_buffer, USART1_DMA_BUF_NUM);
@@ -216,7 +216,7 @@ void USART1_IRQHandler(void)
 
 //void USART1_IRQHandler(void)
 //{
-//    if(huart1.Instance->SR & UART_FLAG_RXNE)//½ÓÊÕµ½Êý¾Ý
+//    if(huart1.Instance->SR & UART_FLAG_RXNE)//ï¿½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½
 //    {
 //        __HAL_UART_CLEAR_PEFLAG(&huart1);
 //    }
@@ -235,19 +235,19 @@ void USART1_IRQHandler(void)
 //            __HAL_DMA_DISABLE(&hdma_usart1_rx);
 
 //            //get receive data length, length = set_data_length - remain_length
-//            //»ñÈ¡½ÓÊÕÊý¾Ý³¤¶È,³¤¶È = Éè¶¨³¤¶È - Ê£Óà³¤¶È
+//            //ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½ï¿½ = ï¿½è¶¨ï¿½ï¿½ï¿½ï¿½ - Ê£ï¿½à³¤ï¿½ï¿½
 //            this_time_rx_len = SBUS_RX_BUF_NUM - hdma_usart1_rx.Instance->NDTR;
 
 //            //reset set_data_lenght
-//            //ÖØÐÂÉè¶¨Êý¾Ý³¤¶È
+//            //ï¿½ï¿½ï¿½ï¿½ï¿½è¶¨ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½
 //            hdma_usart1_rx.Instance->NDTR = SBUS_RX_BUF_NUM;
 
 //            //set memory buffer 1
-//            //Éè¶¨»º³åÇø1
+//            //ï¿½è¶¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½1
 //            hdma_usart1_rx.Instance->CR |= DMA_SxCR_CT;
 //            
 //            //enable DMA
-//            //Ê¹ÄÜDMA
+//            //Ê¹ï¿½ï¿½DMA
 //            __HAL_DMA_ENABLE(&hdma_usart1_rx);
 
 //            if(this_time_rx_len == RC_FRAME_LENGTH)
@@ -267,25 +267,25 @@ void USART1_IRQHandler(void)
 //            __HAL_DMA_DISABLE(&hdma_usart1_rx);
 
 //            //get receive data length, length = set_data_length - remain_length
-//            //»ñÈ¡½ÓÊÕÊý¾Ý³¤¶È,³¤¶È = Éè¶¨³¤¶È - Ê£Óà³¤¶È
+//            //ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½ï¿½ = ï¿½è¶¨ï¿½ï¿½ï¿½ï¿½ - Ê£ï¿½à³¤ï¿½ï¿½
 //            this_time_rx_len = SBUS_RX_BUF_NUM - hdma_usart1_rx.Instance->NDTR;
 
 //            //reset set_data_lenght
-//            //ÖØÐÂÉè¶¨Êý¾Ý³¤¶È
+//            //ï¿½ï¿½ï¿½ï¿½ï¿½è¶¨ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½
 //            hdma_usart1_rx.Instance->NDTR = SBUS_RX_BUF_NUM;
 
 //            //set memory buffer 0
-//            //Éè¶¨»º³åÇø0
+//            //ï¿½è¶¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½0
 //            DMA1_Stream1->CR &= ~(DMA_SxCR_CT);
 //            
 //            //enable DMA
-//            //Ê¹ÄÜDMA
+//            //Ê¹ï¿½ï¿½DMA
 //            __HAL_DMA_ENABLE(&hdma_usart1_rx);
 
 //            if(this_time_rx_len == RC_FRAME_LENGTH)
 //            {
 //				memcpy(sbus_rx_buf, usart1_dma_rx_buffer, 18);
-//                //´¦ÀíÒ£¿ØÆ÷Êý¾Ý
+//                //ï¿½ï¿½ï¿½ï¿½Ò£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 //                sbus_to_rc(sbus_rx_buf[1], &rc_ctrl);
 //				sbus_to_usart1(sbus_rx_buf[1]);
 //            }
@@ -300,22 +300,22 @@ const get_data_t  *get_aim_assistant_control_point(void)
     return &get_data;
 }
 
-// ·¢ËÍ×Ö·û´®
+// ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
 void UART_SendString(UART_HandleTypeDef *huart, uint8_t *str)
 {
     while (*str) {
-        HAL_UART_Transmit(huart, str++, 1, 1000);  // ·¢ËÍÒ»¸ö×Ö½Ú
+        HAL_UART_Transmit(huart, str++, 1, 1000);  // ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ö½ï¿½
     }
 }
 
 void send_uint16_t(uint16_t data) 
 {
-    uint8_t buffer[2];  // ´æ´¢ uint16_t µÄ¸ß×Ö½ÚºÍµÍ×Ö½Ú
+    uint8_t buffer[2];  // ï¿½æ´¢ uint16_t ï¿½Ä¸ï¿½ï¿½Ö½ÚºÍµï¿½ï¿½Ö½ï¿½
 
-    // ½« uint16_t ÀàÐÍÊý¾Ý×ª»»Îª×Ö½ÚÊý×é
-    buffer[0] = (uint8_t)(data >> 8);  // ¸ß×Ö½Ú
-    buffer[1] = (uint8_t)(data & 0xFF); // µÍ×Ö½Ú
+    // ï¿½ï¿½ uint16_t ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½Îªï¿½Ö½ï¿½ï¿½ï¿½ï¿½ï¿½
+    buffer[0] = (uint8_t)(data >> 8);  // ï¿½ï¿½ï¿½Ö½ï¿½
+    buffer[1] = (uint8_t)(data & 0xFF); // ï¿½ï¿½ï¿½Ö½ï¿½
 
-    // Í¨¹ý UART ·¢ËÍ×Ö½ÚÊý¾Ý
-    HAL_UART_Transmit(&huart1, buffer, 2, HAL_MAX_DELAY);  // ·¢ËÍ 2 ¸ö×Ö½Ú
+    // Í¨ï¿½ï¿½ UART ï¿½ï¿½ï¿½ï¿½ï¿½Ö½ï¿½ï¿½ï¿½ï¿½ï¿½
+    HAL_UART_Transmit(&huart1, buffer, 2, HAL_MAX_DELAY);  // ï¿½ï¿½ï¿½ï¿½ 2 ï¿½ï¿½ï¿½Ö½ï¿½
 }
