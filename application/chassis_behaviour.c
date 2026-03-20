@@ -115,11 +115,37 @@ static void chassis_no_follow_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, 
 
 static void chassis_auto_forward_back_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, chassis_move_t *chassis_move_rc_to_vector);
 
-// Auto forward target (meters). The controller integrates measured chassis speed and
-// stops when this distance is reached, so it is robust to speed/power variations.
-#define CHASSIS_AUTO_TARGET_DISTANCE_M 1.0f
-#define CHASSIS_AUTO_FORWARD_SPEED_MPS 0.60f
-#define CHASSIS_AUTO_STOP_HOLD_MS 1000U
+typedef enum
+{
+  AUTO_SEG_MOVE_DISTANCE = 0,
+  AUTO_SEG_ROTATE_ANGLE,
+  AUTO_SEG_WAIT,
+} chassis_auto_segment_type_e;
+
+typedef struct
+{
+  chassis_auto_segment_type_e type;
+  fp32 vx;
+  fp32 vy;
+  fp32 wz;
+  fp32 target;
+} chassis_auto_segment_t;
+
+// Auto action script.
+// target meaning:
+// - AUTO_SEG_MOVE_DISTANCE: meters
+// - AUTO_SEG_ROTATE_ANGLE: rad
+// - AUTO_SEG_WAIT: milliseconds
+static const chassis_auto_segment_t chassis_auto_script[] =
+{
+  {AUTO_SEG_MOVE_DISTANCE, 0.60f, 0.00f, 0.00f, 1.00f},
+  {AUTO_SEG_ROTATE_ANGLE,  0.00f, 0.00f, 1.20f, PI * 0.5f},
+  {AUTO_SEG_MOVE_DISTANCE, -0.60f, 0.00f, 0.00f, 1.00f},
+  {AUTO_SEG_WAIT,          0.00f, 0.00f, 0.00f, 500.0f},
+};
+
+static const uint32_t chassis_auto_script_len =
+  (uint32_t)(sizeof(chassis_auto_script) / sizeof(chassis_auto_script[0]));
 
 
 /**
@@ -559,51 +585,124 @@ static void chassis_no_follow_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, 
 
 static void chassis_auto_forward_back_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, chassis_move_t *chassis_move_rc_to_vector)
 {
-  static fp32 travel_distance_m = 0.0f;
-  static uint8_t target_reached = 0U;
-  static TickType_t stop_start_tick = 0U;
-  TickType_t now;
+    static uint8_t script_initialized = 0U;
+    static uint32_t seg_index = 0U;
+    static fp32 total_distance_m = 0.0f;
+    static fp32 total_yaw_abs_rad = 0.0f;
+    static fp32 seg_start_distance_m = 0.0f;
+    static fp32 seg_start_yaw_abs_rad = 0.0f;
+    static TickType_t seg_start_tick = 0U;
+    TickType_t now;
+    uint32_t guard;
 
     if (vx_set == NULL || vy_set == NULL || wz_set == NULL || chassis_move_rc_to_vector == NULL)
     {
         return;
     }
 
+    if (chassis_auto_script_len == 0U)
+    {
+        *vx_set = 0.0f;
+        *vy_set = 0.0f;
+        *wz_set = 0.0f;
+        chassis_auto_target_reached_flag = 1U;
+    #if CHASSIS_AUTO_FIRE_ENABLE
+        chassis_auto_fire_enable_flag = 1U;
+    #else
+        chassis_auto_fire_enable_flag = 0U;
+    #endif
+        return;
+    }
+
     now = xTaskGetTickCount();
 
-  if (target_reached == 0U)
+    if (script_initialized == 0U)
     {
-    fp32 speed_mps = sqrtf(chassis_move_rc_to_vector->vx * chassis_move_rc_to_vector->vx +
-                 chassis_move_rc_to_vector->vy * chassis_move_rc_to_vector->vy);
-    travel_distance_m += speed_mps * CHASSIS_CONTROL_TIME;
-
-    if (travel_distance_m >= CHASSIS_AUTO_TARGET_DISTANCE_M)
-    {
-      target_reached = 1U;
-      stop_start_tick = now;
-    }
+        script_initialized = 1U;
+        seg_index = 0U;
+        total_distance_m = 0.0f;
+        total_yaw_abs_rad = 0.0f;
+        seg_start_distance_m = 0.0f;
+        seg_start_yaw_abs_rad = 0.0f;
+        seg_start_tick = now;
     }
 
-  if (target_reached)
-    {
-    *vx_set = 0.0f;
-    *vy_set = 0.0f;
-    *wz_set = 0.0f;
-    chassis_auto_target_reached_flag = 1U;
+    total_distance_m += sqrtf(chassis_move_rc_to_vector->vx * chassis_move_rc_to_vector->vx +
+                              chassis_move_rc_to_vector->vy * chassis_move_rc_to_vector->vy) * CHASSIS_CONTROL_TIME;
+    total_yaw_abs_rad += fabsf(chassis_move_rc_to_vector->wz) * CHASSIS_CONTROL_TIME;
 
-    if ((now - stop_start_tick) > pdMS_TO_TICKS(CHASSIS_AUTO_STOP_HOLD_MS))
+    for (guard = 0U; guard < (chassis_auto_script_len + 1U); guard++)
     {
-      // Keep the state latched at stop after the hold window.
-      target_reached = 1U;
+        const chassis_auto_segment_t *seg;
+        uint8_t seg_done = 0U;
+
+        if (seg_index >= chassis_auto_script_len)
+        {
+        #if CHASSIS_AUTO_SCRIPT_LOOP_ENABLE
+            seg_index = 0U;
+            seg_start_distance_m = total_distance_m;
+            seg_start_yaw_abs_rad = total_yaw_abs_rad;
+            seg_start_tick = now;
+        #else
+            *vx_set = 0.0f;
+            *vy_set = 0.0f;
+            *wz_set = 0.0f;
+            chassis_auto_target_reached_flag = 1U;
+          #if CHASSIS_AUTO_FIRE_ENABLE
+            chassis_auto_fire_enable_flag = 1U;
+          #else
+            chassis_auto_fire_enable_flag = 0U;
+          #endif
+            return;
+        #endif
+        }
+
+        seg = &chassis_auto_script[seg_index];
+        *vx_set = seg->vx;
+        *vy_set = seg->vy;
+        *wz_set = seg->wz;
+
+        if (seg->type == AUTO_SEG_MOVE_DISTANCE)
+        {
+            fp32 travel_seg_m = total_distance_m - seg_start_distance_m;
+            if (travel_seg_m >= fabsf(seg->target))
+            {
+                seg_done = 1U;
+            }
+        }
+        else if (seg->type == AUTO_SEG_ROTATE_ANGLE)
+        {
+            fp32 yaw_seg_rad = total_yaw_abs_rad - seg_start_yaw_abs_rad;
+            if (yaw_seg_rad >= fabsf(seg->target))
+            {
+                seg_done = 1U;
+            }
+        }
+        else
+        {
+            TickType_t wait_tick = pdMS_TO_TICKS((uint32_t)(seg->target));
+            if (wait_tick == 0U)
+            {
+                wait_tick = 1U;
+            }
+            if ((now - seg_start_tick) >= wait_tick)
+            {
+                seg_done = 1U;
+            }
+        }
+
+        if (!seg_done)
+        {
+            break;
+        }
+
+        seg_index++;
+        seg_start_distance_m = total_distance_m;
+        seg_start_yaw_abs_rad = total_yaw_abs_rad;
+        seg_start_tick = now;
     }
-    }
-  else
-  {
-    *vx_set = CHASSIS_AUTO_FORWARD_SPEED_MPS;
-    *vy_set = 0.0f;
-    *wz_set = 0.0f;
+
     chassis_auto_target_reached_flag = 0U;
-  }
 
   #if CHASSIS_AUTO_FIRE_ENABLE
     chassis_auto_fire_enable_flag = chassis_auto_target_reached_flag;
