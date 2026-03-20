@@ -143,6 +143,8 @@ chassis_move_t chassis_move;
   */
 void chassis_task(void const *pvParameters)
 {
+  const TickType_t startup_wait_begin = xTaskGetTickCount();
+  const TickType_t startup_wait_timeout = pdMS_TO_TICKS(1500);
     //wait a time 
     //����һ��ʱ��
     vTaskDelay(CHASSIS_TASK_INIT_TIME);
@@ -157,6 +159,11 @@ void chassis_task(void const *pvParameters)
   #endif
          )
     {
+      if ((xTaskGetTickCount() - startup_wait_begin) >= startup_wait_timeout)
+      {
+        // Avoid startup deadlock when detect state is stale before first valid hooks arrive.
+        break;
+      }
         vTaskDelay(CHASSIS_CONTROL_TIME_MS);
     }
 
@@ -181,7 +188,8 @@ void chassis_task(void const *pvParameters)
 
         //make sure  one motor is online at least, so that the control CAN message can be received
         //ȷ������һ��������ߣ� ����CAN���ư����Ա����յ�
-        if (!(toe_is_error(CHASSIS_MOTOR1_TOE) && toe_is_error(CHASSIS_MOTOR2_TOE) && toe_is_error(CHASSIS_MOTOR3_TOE) && toe_is_error(CHASSIS_MOTOR4_TOE)))
+        if (CHASSIS_FORCE_SEND_WHEN_ALL_OFFLINE ||
+          !(toe_is_error(CHASSIS_MOTOR1_TOE) && toe_is_error(CHASSIS_MOTOR2_TOE) && toe_is_error(CHASSIS_MOTOR3_TOE) && toe_is_error(CHASSIS_MOTOR4_TOE)))
         {
             //when remote control is offline, chassis motor should receive zero current.
             //��ң�������ߵ�ʱ�򣬷��͸����̵�������.
@@ -584,6 +592,7 @@ static void chassis_control_loop(chassis_move_t *chassis_move_control_loop)
     fp32 temp = 0.0f;
     fp32 wheel_speed[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     uint8_t i = 0;
+    const fp32 current_limit = MAX_MOTOR_CAN_CURRENT;
 
     //mecanum wheel speed calculation
     //�����˶��ֽ�
@@ -595,7 +604,9 @@ static void chassis_control_loop(chassis_move_t *chassis_move_control_loop)
         
         for (i = 0; i < 4; i++)
         {
-        chassis_move_control_loop->motor_chassis[i].give_current = (int16_t)(chassis_motor_dir[i] * wheel_speed[i]);
+      fp32 raw_current = chassis_motor_dir[i] * wheel_speed[i];
+      raw_current = fp32_constrain(raw_current, -current_limit, current_limit);
+      chassis_move_control_loop->motor_chassis[i].give_current = (int16_t)(raw_current);
         }
         //in raw mode, derectly return
         //raw����ֱ�ӷ���
@@ -638,7 +649,8 @@ static void chassis_control_loop(chassis_move_t *chassis_move_control_loop)
     //��ֵ����ֵ
     for (i = 0; i < 4; i++)
     {
-      chassis_move_control_loop->motor_chassis[i].give_current =
-        (int16_t)(chassis_motor_dir[i] * chassis_move_control_loop->motor_speed_pid[i].out);
+      fp32 pid_current = chassis_motor_dir[i] * chassis_move_control_loop->motor_speed_pid[i].out;
+      pid_current = fp32_constrain(pid_current, -current_limit, current_limit);
+      chassis_move_control_loop->motor_chassis[i].give_current = (int16_t)(pid_current);
     }
 }

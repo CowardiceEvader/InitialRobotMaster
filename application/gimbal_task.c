@@ -290,13 +290,13 @@ static int16_t yaw_can_set_current = 0, pitch_can_set_current = 0, shoot_can_set
 #define YAW_CURRENT_ROUTE_205 0
 #define YAW_CURRENT_ROUTE_206 1
 #ifndef YAW_CURRENT_ROUTE
-#define YAW_CURRENT_ROUTE YAW_CURRENT_ROUTE_206
+#define YAW_CURRENT_ROUTE YAW_CURRENT_ROUTE_205
 #endif
 
 #define SHOOT_CURRENT_ROUTE_207 0
 #define SHOOT_CURRENT_ROUTE_208 1
 #ifndef SHOOT_CURRENT_ROUTE
-#define SHOOT_CURRENT_ROUTE SHOOT_CURRENT_ROUTE_208
+#define SHOOT_CURRENT_ROUTE SHOOT_CURRENT_ROUTE_207
 #endif
 
 #define PITCH_CURRENT_ROUTE_205 0
@@ -304,7 +304,7 @@ static int16_t yaw_can_set_current = 0, pitch_can_set_current = 0, shoot_can_set
 #define PITCH_CURRENT_ROUTE_209 2
 #define PITCH_CURRENT_ROUTE_20A 3
 #ifndef PITCH_CURRENT_ROUTE
-#define PITCH_CURRENT_ROUTE PITCH_CURRENT_ROUTE_205
+#define PITCH_CURRENT_ROUTE PITCH_CURRENT_ROUTE_206
 #endif
 
 #if ((YAW_CURRENT_ROUTE == YAW_CURRENT_ROUTE_205) && (PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_205)) || \
@@ -369,6 +369,8 @@ static void gimbal_send_actuator_currents(int16_t yaw_current, int16_t pitch_cur
 
 void gimbal_task(void const *pvParameters)
 {
+  const TickType_t startup_wait_begin = xTaskGetTickCount();
+  const TickType_t startup_wait_timeout = pdMS_TO_TICKS(1500);
     //�ȴ������������������������
     //wait a time
     vTaskDelay(GIMBAL_TASK_INIT_TIME);
@@ -382,6 +384,11 @@ void gimbal_task(void const *pvParameters)
     //�жϵ���Ƿ�����
     while (toe_is_error(YAW_GIMBAL_MOTOR_TOE) || toe_is_error(PITCH_GIMBAL_MOTOR_TOE))
     {
+      if ((xTaskGetTickCount() - startup_wait_begin) >= startup_wait_timeout)
+      {
+        // Avoid startup deadlock when first CAN feedback is delayed.
+        break;
+      }
         vTaskDelay(GIMBAL_CONTROL_TIME);
         gimbal_feedback_update(&gimbal_control);             //��̨���ݷ���
     }

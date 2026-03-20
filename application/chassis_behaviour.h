@@ -28,6 +28,10 @@ typedef enum
 #define CHASSIS_AUTO_SCRIPT_LOOP_ENABLE 0
 // If enabled, auto motion mode will not be overridden by gimbal stop interlock.
 #define CHASSIS_AUTO_IGNORE_GIMBAL_STOP 1
+
+// If enabled, chassis CAN current is sent even when all chassis motors are marked offline.
+// Useful for bring-up when feedback IDs or detect mapping are still being verified.
+#define CHASSIS_FORCE_SEND_WHEN_ALL_OFFLINE 1
 // If enabled, request auto shoot after chassis reaches script target.
 #define CHASSIS_AUTO_FIRE_ENABLE 1
 
