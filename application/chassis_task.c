@@ -29,6 +29,14 @@
 #include "INS_task.h"
 #include "chassis_power_control.h"
 
+static const fp32 chassis_motor_dir[4] =
+{
+  CHASSIS_MOTOR0_DIR,
+  CHASSIS_MOTOR1_DIR,
+  CHASSIS_MOTOR2_DIR,
+  CHASSIS_MOTOR3_DIR,
+};
+
 #define rc_deadband_limit(input, output, dealine)        \
     {                                                    \
         if ((input) > (dealine) || (input) < -(dealine)) \
@@ -363,7 +371,8 @@ static void chassis_feedback_update(chassis_move_t *chassis_move_update)
     {
         //update motor speed, accel is differential of speed PID
         //���µ���ٶȣ����ٶ����ٶȵ�PID΢��
-        chassis_move_update->motor_chassis[i].speed = CHASSIS_MOTOR_RPM_TO_VECTOR_SEN * chassis_move_update->motor_chassis[i].chassis_motor_measure->speed_rpm;
+      chassis_move_update->motor_chassis[i].speed =
+        chassis_motor_dir[i] * CHASSIS_MOTOR_RPM_TO_VECTOR_SEN * chassis_move_update->motor_chassis[i].chassis_motor_measure->speed_rpm;
         chassis_move_update->motor_chassis[i].accel = chassis_move_update->motor_speed_pid[i].Dbuf[0] * CHASSIS_CONTROL_FREQUENCE;
     }
 
@@ -586,7 +595,7 @@ static void chassis_control_loop(chassis_move_t *chassis_move_control_loop)
         
         for (i = 0; i < 4; i++)
         {
-            chassis_move_control_loop->motor_chassis[i].give_current = (int16_t)(wheel_speed[i]);
+        chassis_move_control_loop->motor_chassis[i].give_current = (int16_t)(chassis_motor_dir[i] * wheel_speed[i]);
         }
         //in raw mode, derectly return
         //raw����ֱ�ӷ���
@@ -629,6 +638,7 @@ static void chassis_control_loop(chassis_move_t *chassis_move_control_loop)
     //��ֵ����ֵ
     for (i = 0; i < 4; i++)
     {
-        chassis_move_control_loop->motor_chassis[i].give_current = (int16_t)(chassis_move_control_loop->motor_speed_pid[i].out);
+      chassis_move_control_loop->motor_chassis[i].give_current =
+        (int16_t)(chassis_motor_dir[i] * chassis_move_control_loop->motor_speed_pid[i].out);
     }
 }

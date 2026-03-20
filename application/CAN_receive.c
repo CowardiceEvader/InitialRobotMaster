@@ -1,22 +1,4 @@
-/**
-  ****************************(C) COPYRIGHT 2019 DJI****************************
-  * @file       can_receive.c/h
-  * @brief      there is CAN interrupt function  to receive motor data,
-  *             and CAN send function to send motor current to control motor.
-  *             ������CAN�жϽ��պ��������յ������,CAN���ͺ������͵���������Ƶ��.
-  * @note       
-  * @history
-  *  Version    Date            Author          Modification
-  *  V1.0.0     Dec-26-2018     RM              1. done
-  *  V1.1.0     Nov-11-2019     RM              1. support hal lib
-  *
-  @verbatim
-  ==============================================================================
 
-  ==============================================================================
-  @endverbatim
-  ****************************(C) COPYRIGHT 2019 DJI****************************
-  */
 
 #include "CAN_receive.h"
 
@@ -279,18 +261,18 @@ void CAN_cmd_gimbal_dual(int16_t rev1, int16_t reve, int16_t rev, int16_t trigge
 void CAN_cmd_gimbal_dual_pitch(int16_t pitch, int16_t yaw, int16_t rev2, int16_t rev3)
 {
     uint32_t send_mail_box;
-    gimbal_dual_tx_message.StdId = CAN_GIMBAL_1_ALL_ID;
-    gimbal_dual_tx_message.IDE = CAN_ID_STD;
-    gimbal_dual_tx_message.RTR = CAN_RTR_DATA;
-    gimbal_dual_tx_message.DLC = 0x08;
-    gimbal_dual_can_send_data[0] = pitch >> 8;
-    gimbal_dual_can_send_data[1] = pitch;
-    gimbal_dual_can_send_data[2] = yaw >> 8;
-    gimbal_dual_can_send_data[3] = yaw;
-    gimbal_dual_can_send_data[4] = rev2 >> 8;
-    gimbal_dual_can_send_data[5] = rev2;
-    gimbal_dual_can_send_data[6] = rev3 >> 8;
-    gimbal_dual_can_send_data[7] = rev3;
+  gimbal_dual_pitch_tx_message.StdId = CAN_GIMBAL_1_ALL_ID;
+  gimbal_dual_pitch_tx_message.IDE = CAN_ID_STD;
+  gimbal_dual_pitch_tx_message.RTR = CAN_RTR_DATA;
+  gimbal_dual_pitch_tx_message.DLC = 0x08;
+  gimbal_dual_pitch_can_send_data[0] = pitch >> 8;
+  gimbal_dual_pitch_can_send_data[1] = pitch;
+  gimbal_dual_pitch_can_send_data[2] = yaw >> 8;
+  gimbal_dual_pitch_can_send_data[3] = yaw;
+  gimbal_dual_pitch_can_send_data[4] = rev2 >> 8;
+  gimbal_dual_pitch_can_send_data[5] = rev2;
+  gimbal_dual_pitch_can_send_data[6] = rev3 >> 8;
+  gimbal_dual_pitch_can_send_data[7] = rev3;
 
     HAL_CAN_AddTxMessage(&GIMBAL_CAN, &gimbal_dual_pitch_tx_message, gimbal_dual_pitch_can_send_data, &send_mail_box);
 }
@@ -308,7 +290,7 @@ void CAN_cmd_gimbal_dual_pitch(int16_t pitch, int16_t yaw, int16_t rev2, int16_t
   */
 const motor_measure_t *get_yaw_gimbal_motor_measure_point(void)
 {
-    return &motor_chassis[4];
+  return &motor_chassis[CAN_MOTOR_INDEX_FROM_ID(YAW_GIMBAL_FEEDBACK_ID)];
 }
 
 /**
@@ -323,7 +305,7 @@ const motor_measure_t *get_yaw_gimbal_motor_measure_point(void)
   */
 const motor_measure_t *get_pitch_gimbal_motor_measure_point(void)
 {
-    return &motor_chassis[5];
+  return &motor_chassis[CAN_MOTOR_INDEX_FROM_ID(PITCH_GIMBAL_FEEDBACK_ID)];
 }
 
 
@@ -339,7 +321,7 @@ const motor_measure_t *get_pitch_gimbal_motor_measure_point(void)
   */
 const motor_measure_t *get_trigger_motor_measure_point(void)
 {
-    return &motor_chassis[6];
+  return &motor_chassis[CAN_MOTOR_INDEX_FROM_ID(TRIGGER_GIMBAL_FEEDBACK_ID)];
 }
 
 
@@ -385,7 +367,11 @@ const motor_measure_t *get_pitch_gimbal_dual_motor_measure_point(void)
   */
 const motor_measure_t *get_trigger_dual_motor_measure_point(void)
 {
-    return &motor_chassis[9];
+#if TRIGGER_GIMBAL_FEEDBACK_ID == 0x208
+  return &motor_chassis[CAN_MOTOR_INDEX_FROM_ID(0x207)];
+#else
+  return &motor_chassis[CAN_MOTOR_INDEX_FROM_ID(0x208)];
+#endif
 }
 
 /**

@@ -1,84 +1,4 @@
-  /**
-  ****************************(C) COPYRIGHT 2019 DJI****************************
-  * @file       chassis_behaviour.c/h
-  * @brief      according to remote control, change the chassis behaviour.
-  *             ����ң������ֵ������������Ϊ��
-  * @note       
-  * @history
-  *  Version    Date            Author          Modification
-  *  V1.0.0     Dec-26-2018     RM              1. done
-  *  V1.1.0     Nov-11-2019     RM              1. add some annotation
-  *
-  @verbatim
-  ==============================================================================
-    add a chassis behaviour mode
-    1. in chassis_behaviour.h , add a new behaviour name in chassis_behaviour
-    erum
-    {  
-        ...
-        ...
-        CHASSIS_XXX_XXX, // new add
-    }chassis_behaviour_e,
-    2. implement new function. chassis_xxx_xxx_control(fp32 *vx, fp32 *vy, fp32 *wz, chassis_move_t * chassis )
-        "vx, vy, wz" param is chassis movement contorl input. 
-        first param: 'vx' usually means  vertical speed,
-            positive value means forward speed, negative value means backward speed.
-        second param: 'vy' usually means horizotal speed,
-            positive value means letf speed, negative value means right speed
-        third param: 'wz' can be rotation speed set or angle set, 
 
-        in this new function, you can assign speed to "vx","vy",and "wz",as your wish
-    3.  in "chassis_behaviour_mode_set" function, add new logical judgement to assign CHASSIS_XXX_XXX to  "chassis_behaviour_mode" variable,
-        and in the last of the function, add "else if(chassis_behaviour_mode == CHASSIS_XXX_XXX)" 
-        choose a chassis control mode.
-        four mode:
-        CHASSIS_VECTOR_FOLLOW_GIMBAL_YAW : 'vx' and 'vy' are speed control, 'wz' is angle set to control relative angle
-            between chassis and gimbal. you can name third param to 'xxx_angle_set' other than 'wz'
-        CHASSIS_VECTOR_FOLLOW_CHASSIS_YAW : 'vx' and 'vy' are speed control, 'wz' is angle set to control absolute angle calculated by gyro
-            you can name third param to 'xxx_angle_set.
-        CHASSIS_VECTOR_NO_FOLLOW_YAW : 'vx' and 'vy' are speed control, 'wz' is rotation speed control.
-        CHASSIS_VECTOR_RAW : will use 'vx' 'vy' and 'wz'  to linearly calculate four wheel current set, 
-            current set will be derectly sent to can bus.
-    4. in the last of "chassis_behaviour_control_set" function, add
-        else if(chassis_behaviour_mode == CHASSIS_XXX_XXX)
-        {
-            chassis_xxx_xxx_control(vx_set, vy_set, angle_set, chassis_move_rc_to_vector);
-        }
-
-        
-    ���Ҫ����һ���µ���Ϊģʽ
-    1.���ȣ���chassis_behaviour.h�ļ��У� ����һ������Ϊ������ chassis_behaviour_e
-    erum
-    {  
-        ...
-        ...
-        CHASSIS_XXX_XXX, // �����ӵ�
-    }chassis_behaviour_e,
-
-    2. ʵ��һ���µĺ��� chassis_xxx_xxx_control(fp32 *vx, fp32 *vy, fp32 *wz, chassis_move_t * chassis )
-        "vx,vy,wz" �����ǵ����˶�����������
-        ��һ������: 'vx' ͨ�����������ƶ�,��ֵ ǰ���� ��ֵ ����
-        �ڶ�������: 'vy' ͨ�����ƺ����ƶ�,��ֵ ����, ��ֵ ����
-        ����������: 'wz' �����ǽǶȿ��ƻ�����ת�ٶȿ���
-        ������µĺ���, ���ܸ� "vx","vy",and "wz" ��ֵ��Ҫ���ٶȲ���
-    3.  ��"chassis_behaviour_mode_set"��������У������µ��߼��жϣ���chassis_behaviour_mode��ֵ��CHASSIS_XXX_XXX
-        �ں����������"else if(chassis_behaviour_mode == CHASSIS_XXX_XXX)" ,Ȼ��ѡ��һ�ֵ��̿���ģʽ
-        4��:
-        CHASSIS_VECTOR_FOLLOW_GIMBAL_YAW : 'vx' and 'vy'���ٶȿ��ƣ� 'wz'�ǽǶȿ��� ��̨�͵��̵���ԽǶ�
-        �����������"xxx_angle_set"������'wz'
-        CHASSIS_VECTOR_FOLLOW_CHASSIS_YAW : 'vx' and 'vy'���ٶȿ��ƣ� 'wz'�ǽǶȿ��� ���̵������Ǽ�����ľ��ԽǶ�
-        �����������"xxx_angle_set"
-        CHASSIS_VECTOR_NO_FOLLOW_YAW : 'vx' and 'vy'���ٶȿ��ƣ� 'wz'����ת�ٶȿ���
-        CHASSIS_VECTOR_RAW : ʹ��'vx' 'vy' and 'wz'ֱ�����Լ�������ֵĵ���ֵ������ֵ��ֱ�ӷ��͵�can ������
-    4.  ��"chassis_behaviour_control_set" �������������
-        else if(chassis_behaviour_mode == CHASSIS_XXX_XXX)
-        {
-            chassis_xxx_xxx_control(vx_set, vy_set, angle_set, chassis_move_rc_to_vector);
-        }
-  ==============================================================================
-  @endverbatim
-  ****************************(C) COPYRIGHT 2019 DJI****************************
-  */
 
 #include "chassis_behaviour.h"
 #include "cmsis_os.h"
@@ -195,30 +115,11 @@ static void chassis_no_follow_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, 
 
 static void chassis_auto_forward_back_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, chassis_move_t *chassis_move_rc_to_vector);
 
-typedef struct
-{
-  fp32 vx;
-  fp32 vy;
-  fp32 wz;
-  uint32_t duration_ms;
-} chassis_auto_motion_cmd_t;
-
-// Edit this table only: each row is one action {vx, vy, wz, duration_ms}.
-static const chassis_auto_motion_cmd_t chassis_auto_motion_script[] = {
-         {0.00f, 0.00f, 0.00f, 1000U}, // 停 1s（可选）
-  {0.60f, 0.00f, 0.00f, 1667U}, // 前进 1m
-    // {0.00f, 0.00f, 1.00f, 1571U}, // 左转 90°
-    // {0.60f, 0.00f, 0.00f,  833U}, // 前进 0.5m
-    {0.00f, 0.00f, 0.00f, 1000U}, // 停 1s（可选）
-  // {0.8f, 0.0f, 0.0f, 1800U},
-  // {0.0f, 0.0f, 1.2f, 900U},
-  // {0.8f, 0.0f, 0.0f, 1200U},
-  // {0.0f, 0.0f, 0.0f, 600U},
-  // {-0.6f, 0.0f, 0.0f, 1400U},
-};
-
-static uint32_t const chassis_auto_motion_script_len =
-  (uint32_t)(sizeof(chassis_auto_motion_script) / sizeof(chassis_auto_motion_script[0]));
+// Auto forward target (meters). The controller integrates measured chassis speed and
+// stops when this distance is reached, so it is robust to speed/power variations.
+#define CHASSIS_AUTO_TARGET_DISTANCE_M 1.0f
+#define CHASSIS_AUTO_FORWARD_SPEED_MPS 0.60f
+#define CHASSIS_AUTO_STOP_HOLD_MS 1000U
 
 
 /**
@@ -250,6 +151,14 @@ static void chassis_open_set_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, c
 //���⣬���������Ϊģʽ����
 chassis_behaviour_e chassis_behaviour_mode = CHASSIS_ZERO_FORCE;
 
+// Runtime debug flags for observing gimbal stop interlock behavior.
+volatile uint8_t chassis_gimbal_stop_requested_flag = 0U;
+volatile uint8_t chassis_gimbal_stop_applied_flag = 0U;
+volatile uint8_t chassis_gimbal_stop_ignored_flag = 0U;
+volatile uint8_t chassis_auto_mode_active_flag = 0U;
+volatile uint8_t chassis_auto_target_reached_flag = 0U;
+volatile uint8_t chassis_auto_fire_enable_flag = 0U;
+
 
 /**
   * @brief          logical judgement to assign "chassis_behaviour_mode" variable to which mode
@@ -263,6 +172,8 @@ chassis_behaviour_e chassis_behaviour_mode = CHASSIS_ZERO_FORCE;
   */
 void chassis_behaviour_mode_set(chassis_move_t *chassis_move_mode)
 {
+  bool_t gimbal_stop_request = 0;
+
     if (chassis_move_mode == NULL)
     {
         return;
@@ -292,11 +203,37 @@ void chassis_behaviour_mode_set(chassis_move_t *chassis_move_mode)
     chassis_behaviour_mode = CHASSIS_AUTO_FORWARD_BACK;
   #endif
 
+    chassis_auto_mode_active_flag = (chassis_behaviour_mode == CHASSIS_AUTO_FORWARD_BACK) ? 1U : 0U;
+    if (!chassis_auto_mode_active_flag)
+    {
+      chassis_auto_target_reached_flag = 0U;
+      chassis_auto_fire_enable_flag = 0U;
+    }
+
     //when gimbal in some mode, such as init mode, chassis must's move
     //����̨��ĳЩģʽ�£����ʼ���� ���̲���
-    if (gimbal_cmd_to_chassis_stop())
+    gimbal_stop_request = gimbal_cmd_to_chassis_stop();
+    chassis_gimbal_stop_requested_flag = gimbal_stop_request ? 1U : 0U;
+    chassis_gimbal_stop_applied_flag = 0U;
+    chassis_gimbal_stop_ignored_flag = 0U;
+
+    if (gimbal_stop_request)
     {
+#if CHASSIS_AUTO_FB_ENABLE && CHASSIS_AUTO_IGNORE_GIMBAL_STOP
+        if (chassis_auto_mode_active_flag)
+        {
+            // Keep auto motion script active even if gimbal requests chassis stop.
+            chassis_gimbal_stop_ignored_flag = 1U;
+        }
+        else
+        {
+            chassis_behaviour_mode = CHASSIS_NO_MOVE;
+            chassis_gimbal_stop_applied_flag = 1U;
+        }
+#else
         chassis_behaviour_mode = CHASSIS_NO_MOVE;
+        chassis_gimbal_stop_applied_flag = 1U;
+#endif
     }
 
 
@@ -622,67 +559,57 @@ static void chassis_no_follow_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, 
 
 static void chassis_auto_forward_back_control(fp32 *vx_set, fp32 *vy_set, fp32 *wz_set, chassis_move_t *chassis_move_rc_to_vector)
 {
-    static uint32_t cmd_index = 0U;
-    static TickType_t cmd_start_tick = 0U;
-    static uint8_t script_initialized = 0U;
-    TickType_t now;
+  static fp32 travel_distance_m = 0.0f;
+  static uint8_t target_reached = 0U;
+  static TickType_t stop_start_tick = 0U;
+  TickType_t now;
 
     if (vx_set == NULL || vy_set == NULL || wz_set == NULL || chassis_move_rc_to_vector == NULL)
     {
         return;
     }
 
-    if (chassis_auto_motion_script_len == 0U)
-    {
-        *vx_set = 0.0f;
-        *vy_set = 0.0f;
-        *wz_set = 0.0f;
-        return;
-    }
-
     now = xTaskGetTickCount();
-    if (script_initialized == 0U)
+
+  if (target_reached == 0U)
     {
-        cmd_index = 0U;
-        cmd_start_tick = now;
-        script_initialized = 1U;
+    fp32 speed_mps = sqrtf(chassis_move_rc_to_vector->vx * chassis_move_rc_to_vector->vx +
+                 chassis_move_rc_to_vector->vy * chassis_move_rc_to_vector->vy);
+    travel_distance_m += speed_mps * CHASSIS_CONTROL_TIME;
+
+    if (travel_distance_m >= CHASSIS_AUTO_TARGET_DISTANCE_M)
+    {
+      target_reached = 1U;
+      stop_start_tick = now;
+    }
     }
 
-    while (1)
+  if (target_reached)
     {
-        TickType_t duration_tick = pdMS_TO_TICKS(chassis_auto_motion_script[cmd_index].duration_ms);
-        TickType_t elapsed_tick = now - cmd_start_tick;
+    *vx_set = 0.0f;
+    *vy_set = 0.0f;
+    *wz_set = 0.0f;
+    chassis_auto_target_reached_flag = 1U;
 
-        if (duration_tick == 0U)
-        {
-            duration_tick = 1U;
-        }
-
-        if (elapsed_tick < duration_tick)
-        {
-            break;
-        }
-
-        cmd_start_tick += duration_tick;
-
-        if ((cmd_index + 1U) < chassis_auto_motion_script_len)
-        {
-            cmd_index++;
-        }
-        else
-        {
-#if CHASSIS_AUTO_SCRIPT_LOOP_ENABLE
-            cmd_index = 0U;
-#else
-            cmd_index = chassis_auto_motion_script_len - 1U;
-            break;
-#endif
-        }
+    if ((now - stop_start_tick) > pdMS_TO_TICKS(CHASSIS_AUTO_STOP_HOLD_MS))
+    {
+      // Keep the state latched at stop after the hold window.
+      target_reached = 1U;
     }
+    }
+  else
+  {
+    *vx_set = CHASSIS_AUTO_FORWARD_SPEED_MPS;
+    *vy_set = 0.0f;
+    *wz_set = 0.0f;
+    chassis_auto_target_reached_flag = 0U;
+  }
 
-    *vx_set = chassis_auto_motion_script[cmd_index].vx;
-    *vy_set = chassis_auto_motion_script[cmd_index].vy;
-    *wz_set = chassis_auto_motion_script[cmd_index].wz;
+  #if CHASSIS_AUTO_FIRE_ENABLE
+    chassis_auto_fire_enable_flag = chassis_auto_target_reached_flag;
+  #else
+    chassis_auto_fire_enable_flag = 0U;
+  #endif
 }
 
 

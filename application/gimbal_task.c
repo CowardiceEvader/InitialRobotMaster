@@ -1,30 +1,3 @@
-/**
-  ****************************(C) COPYRIGHT 2019 DJI****************************
-  * @file       gimbal_task.c/h
-  * @brief      gimbal control task, because use the euler angle calculated by
-  *             gyro sensor, range (-pi,pi), angle set-point must be in this 
-  *             range.gimbal has two control mode, gyro mode and enconde mode
-  *             gyro mode: use euler angle to control, encond mode: use enconde
-  *             angle to control. and has some special mode:cali mode, motionless
-  *             mode.
-  *             �����̨��������������̨ʹ�������ǽ�����ĽǶȣ��䷶Χ�ڣ�-pi,pi��
-  *             �ʶ�����Ŀ��ǶȾ�Ϊ��Χ����������ԽǶȼ���ĺ�������̨��Ҫ��Ϊ2��
-  *             ״̬�������ǿ���״̬�����ð��������ǽ������̬�ǽ��п��ƣ�����������
-  *             ״̬��ͨ����������ı���ֵ���Ƶ�У׼�����⻹��У׼״̬��ֹͣ״̬�ȡ�
-  * @note       
-  * @history
-  *  Version    Date            Author          Modification
-  *  V1.0.0     Dec-26-2018     RM              1. done
-  *  V1.1.0     Nov-11-2019     RM              1. add some annotation
-  *
-  @verbatim
-  ==============================================================================
-
-  ==============================================================================
-  @endverbatim
-  ****************************(C) COPYRIGHT 2019 DJI****************************
-  */
-
 #include "gimbal_task.h"
 
 #include "main.h"
@@ -314,28 +287,51 @@ static int16_t yaw_can_set_current = 0, pitch_can_set_current = 0, shoot_can_set
 //	           yaw_dual_can_set_current = 0, pitch_dual_can_set_current = 0, shoot_dual_can_set_current = 0;
 
 // Current routing options used to quickly adapt to changed motor IDs without touching control logic.
+#define YAW_CURRENT_ROUTE_205 0
+#define YAW_CURRENT_ROUTE_206 1
+#ifndef YAW_CURRENT_ROUTE
+#define YAW_CURRENT_ROUTE YAW_CURRENT_ROUTE_206
+#endif
+
 #define SHOOT_CURRENT_ROUTE_207 0
 #define SHOOT_CURRENT_ROUTE_208 1
 #ifndef SHOOT_CURRENT_ROUTE
-#define SHOOT_CURRENT_ROUTE SHOOT_CURRENT_ROUTE_207
+#define SHOOT_CURRENT_ROUTE SHOOT_CURRENT_ROUTE_208
 #endif
 
-#define PITCH_CURRENT_ROUTE_206 0
-#define PITCH_CURRENT_ROUTE_209 1
-#define PITCH_CURRENT_ROUTE_20A 2
+#define PITCH_CURRENT_ROUTE_205 0
+#define PITCH_CURRENT_ROUTE_206 1
+#define PITCH_CURRENT_ROUTE_209 2
+#define PITCH_CURRENT_ROUTE_20A 3
 #ifndef PITCH_CURRENT_ROUTE
-#define PITCH_CURRENT_ROUTE PITCH_CURRENT_ROUTE_206
+#define PITCH_CURRENT_ROUTE PITCH_CURRENT_ROUTE_205
+#endif
+
+#if ((YAW_CURRENT_ROUTE == YAW_CURRENT_ROUTE_205) && (PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_205)) || \
+  ((YAW_CURRENT_ROUTE == YAW_CURRENT_ROUTE_206) && (PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_206))
+#error "Yaw and pitch current routes conflict on same CAN1 slot"
 #endif
 
 static void gimbal_send_actuator_currents(int16_t yaw_current, int16_t pitch_current, int16_t shoot_current)
 {
+  int16_t can1_yaw_current = 0;
   int16_t can1_pitch_current = 0;
   int16_t can1_shoot_current = 0;
   int16_t can1_rev_current = 0;
   int16_t can2_pitch_current = 0;
   int16_t can2_yaw_current = 0;
 
-#if PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_206
+#if YAW_CURRENT_ROUTE == YAW_CURRENT_ROUTE_205
+  can1_yaw_current = yaw_current;
+#elif YAW_CURRENT_ROUTE == YAW_CURRENT_ROUTE_206
+  can1_pitch_current = yaw_current;
+#else
+#error "Invalid YAW_CURRENT_ROUTE value"
+#endif
+
+#if PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_205
+  can1_yaw_current = pitch_current;
+#elif PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_206
   can1_pitch_current = pitch_current;
 #elif PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_209
   can2_pitch_current = pitch_current;
@@ -353,7 +349,7 @@ static void gimbal_send_actuator_currents(int16_t yaw_current, int16_t pitch_cur
 #error "Invalid SHOOT_CURRENT_ROUTE value"
 #endif
 
-  CAN_cmd_gimbal(yaw_current, can1_pitch_current, can1_shoot_current, can1_rev_current);
+  CAN_cmd_gimbal(can1_yaw_current, can1_pitch_current, can1_shoot_current, can1_rev_current);
 
 #if (PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_209) || (PITCH_CURRENT_ROUTE == PITCH_CURRENT_ROUTE_20A)
   CAN_cmd_gimbal_dual_pitch(can2_pitch_current, can2_yaw_current, 0, 0);

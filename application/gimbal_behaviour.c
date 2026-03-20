@@ -83,6 +83,7 @@
 #include "arm_math.h"
 #include "bsp_buzzer.h"
 #include "detect_task.h"
+#include "chassis_behaviour.h"
 
 #include "user_lib.h"
 
@@ -809,6 +810,22 @@ static void gimbal_relative_angle_control(fp32 *yaw, fp32 *pitch, gimbal_control
 
     *yaw = yaw_channel * YAW_RC_SEN - gimbal_control_set->gimbal_rc_ctrl->mouse.x * YAW_MOUSE_SEN;
     *pitch = pitch_channel * PITCH_RC_SEN + gimbal_control_set->gimbal_rc_ctrl->mouse.y * PITCH_MOUSE_SEN;
+
+#if CHASSIS_AUTO_FB_ENABLE && CHASSIS_AUTO_FIRE_ENABLE
+    if (chassis_auto_fire_enable_flag)
+    {
+        fp32 pitch_err = AUTO_FIRE_MIN_PITCH_RELATIVE_ANGLE - gimbal_control_set->gimbal_pitch_motor.relative_angle;
+        if (pitch_err > 0.0f)
+        {
+            fp32 auto_lift_add = pitch_err * AUTO_FIRE_PITCH_LIFT_KP;
+            if (auto_lift_add > AUTO_FIRE_PITCH_LIFT_MAX_ADD)
+            {
+                auto_lift_add = AUTO_FIRE_PITCH_LIFT_MAX_ADD;
+            }
+            *pitch += auto_lift_add;
+        }
+    }
+#endif
 
 
 }

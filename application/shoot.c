@@ -30,6 +30,7 @@
 #include "gimbal_behaviour.h"
 #include "detect_task.h"
 #include "pid.h"
+#include "chassis_behaviour.h"
 
 #define shoot_fric1_on(pwm) fric1_on((pwm)) //Ħ����1pwm�궨��
 #define shoot_fric2_on(pwm) fric2_on((pwm)) //Ħ����2pwm�궨��
@@ -232,6 +233,58 @@ int16_t shoot_control_loop(void)
 static void shoot_set_mode(void)
 {
     static int8_t last_s = RC_SW_UP;
+
+#if CHASSIS_AUTO_FB_ENABLE && CHASSIS_AUTO_FIRE_ENABLE
+    {
+        const gimbal_control_t *gimbal_ctrl = get_gimbal_control_point();
+        bool_t pitch_safe = 0;
+
+        if (gimbal_ctrl != NULL)
+        {
+            if (gimbal_ctrl->gimbal_pitch_motor.relative_angle >= AUTO_FIRE_MIN_PITCH_RELATIVE_ANGLE)
+            {
+                pitch_safe = 1;
+            }
+        }
+
+        if (chassis_auto_fire_enable_flag)
+        {
+            if (gimbal_cmd_to_shoot_stop())
+            {
+                shoot_control.shoot_mode = SHOOT_STOP;
+            }
+            else
+            {
+                if (shoot_control.shoot_mode == SHOOT_STOP)
+                {
+                    shoot_control.shoot_mode = SHOOT_READY_FRIC;
+                }
+
+                if (shoot_control.shoot_mode == SHOOT_READY_FRIC &&
+                    shoot_control.fric1_ramp.out == shoot_control.fric1_ramp.max_value &&
+                    shoot_control.fric2_ramp.out == shoot_control.fric2_ramp.max_value)
+                {
+                    shoot_control.shoot_mode = SHOOT_READY_BULLET;
+                }
+
+                if (pitch_safe)
+                {
+                    if (shoot_control.shoot_mode >= SHOOT_READY_BULLET)
+                    {
+                        shoot_control.shoot_mode = SHOOT_CONTINUE_BULLET;
+                    }
+                }
+                else if (shoot_control.shoot_mode == SHOOT_CONTINUE_BULLET)
+                {
+                    shoot_control.shoot_mode = SHOOT_READY_BULLET;
+                }
+            }
+
+            last_s = shoot_control.shoot_rc->rc.s[SHOOT_RC_MODE_CHANNEL];
+            return;
+        }
+    }
+#endif
 
     //�ϲ��жϣ� һ�ο������ٴιر�
     if ((switch_is_up(shoot_control.shoot_rc->rc.s[SHOOT_RC_MODE_CHANNEL]) && !switch_is_up(last_s) && shoot_control.shoot_mode == SHOOT_STOP))
